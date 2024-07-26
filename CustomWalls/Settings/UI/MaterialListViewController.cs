@@ -37,9 +37,9 @@ namespace CustomWalls.Settings.UI
         }
 
         [UIAction("reloadMaterials")]
-        public void ReloadMaterials()
+        public async void ReloadMaterials()
         {
-            MaterialAssetLoader.Reload();
+            await MaterialAssetLoader.Reload();
             SetupList();
             Select(customListTableData.tableView, MaterialAssetLoader.SelectedMaterial);
         }

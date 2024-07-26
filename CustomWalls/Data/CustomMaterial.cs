@@ -1,8 +1,11 @@
-﻿using CustomWalls.Data.CustomMaterialExtensions;
+﻿using AssetBundleLoadingTools.Utilities;
+using AssetBundleLoadingTools.Models.Shaders;
+using CustomWalls.Data.CustomMaterialExtensions;
 using CustomWalls.Utilities;
 using System;
 using System.IO;
 using UnityEngine;
+using System.Threading.Tasks;
 
 namespace CustomWalls.Data
 {
@@ -14,94 +17,132 @@ namespace CustomWalls.Data
         public GameObject GameObject { get; }
         public Renderer MaterialRenderer { get; }
         public MeshFilter MaterialMeshFilter { get; }
-        public string ErrorMessage { get; } = string.Empty;
+        public string ErrorMessage { get; }
 
-        public CustomMaterial(string fileName)
+        private CustomMaterial(string fileName, AssetBundle assetBundle, MaterialDescriptor descriptor, GameObject gameObject, Renderer materialRenderer, MeshFilter materialMeshFilter, string errorMessage)
         {
-            FileName = fileName;
+            FileName = fileName ?? "Unknown";
+            AssetBundle = assetBundle;
+            Descriptor = descriptor;
+            GameObject = gameObject;
+            MaterialRenderer = materialRenderer;
+            MaterialMeshFilter = materialMeshFilter;
+            ErrorMessage = errorMessage ?? string.Empty;
+        }
 
-            if (fileName != "DefaultMaterials")
+        public static CustomMaterial DefaultMaterial =>
+            new CustomMaterial("DefaultMaterials", null, new MaterialDescriptor
             {
-                try
-                {
-                    AssetBundle = AssetBundle.LoadFromFile(Path.Combine(Plugin.PluginAssetPath, fileName));
+                MaterialName = "Default",
+                AuthorName = "Beat Saber",
+                Description = "This is the default walls. (No preview available)",
+                Icon = Utils.GetDefaultIcon()
+            }, null, null, null, null);
 
-                    GameObject = AssetBundle.LoadAsset<GameObject>("Assets/_CustomMaterial.prefab");
-                    Descriptor = GameObject.GetComponent<MaterialDescriptor>();
-                    MaterialRenderer = MaterialUtils.GetGameObjectRenderer(GameObject, "pixie");
-                    MaterialMeshFilter = MeshUtils.GetGameObjectMeshFilter(GameObject, "pixie");
-                }
-                catch (Exception ex)
-                {
-                    Logger.log.Warn($"Something went wrong getting the AssetBundle for '{fileName}'!");
-                    Logger.log.Warn(ex);
-
-                    Descriptor = new MaterialDescriptor()
-                    {
-                        MaterialName = "Invalid Wall (Delete it!)",
-                        AuthorName = fileName,
-                        Icon = Utils.GetErrorIcon()
-                    };
-
-                    ErrorMessage = $"File: '{fileName}'" +
-                                    "\n\nThis file failed to load." +
-                                    "\n\nThis may have been caused by having duplicated files," +
-                                    " another wall with the same name already exists or that the custom wall is simply just broken." +
-                                    "\n\nThe best thing is probably just to delete it!";
-
-                    FileName = "DefaultMaterials";
-                }
-            }
-            else
+        public static async Task<CustomMaterial> CreateAsync(string fileName)
+        {
+            if (fileName == "DefaultMaterials")
             {
-                Descriptor = new MaterialDescriptor
+                MaterialDescriptor descriptor = new MaterialDescriptor
                 {
                     MaterialName = "Default",
                     AuthorName = "Beat Saber",
                     Description = "This is the default walls. (No preview available)",
                     Icon = Utils.GetDefaultIcon()
                 };
+                return new CustomMaterial(fileName, null, descriptor, null, null, null, null);
+            }
+
+            try
+            {
+                AssetBundle assetBundle = await AssetBundleExtensions.LoadFromFileAsync(Path.Combine(Plugin.PluginAssetPath, fileName));
+                GameObject gameObject = await AssetBundleExtensions.LoadAssetAsync<GameObject>(assetBundle, "Assets/_CustomMaterial.prefab");
+                ShaderReplacementInfo shaderReplacementInfo = await ShaderRepair.FixShadersOnGameObjectAsync(gameObject);
+                if (!shaderReplacementInfo.AllShadersReplaced)
+                {
+                    foreach (string shaderName in shaderReplacementInfo.MissingShaderNames)
+                    {
+                        Logger.log.Debug($"Failed to replace shader '{shaderName}' on {gameObject.name}");
+                    }
+                }
+
+                MaterialDescriptor descriptor = gameObject.GetComponent<MaterialDescriptor>();
+                Renderer materialRenderer = MaterialUtils.GetGameObjectRenderer(gameObject, "pixie");
+                MeshFilter materialMeshFilter = MeshUtils.GetGameObjectMeshFilter(gameObject, "pixie");
+                return new CustomMaterial(fileName, assetBundle, descriptor, gameObject, materialRenderer, materialMeshFilter, null);
+            }
+            catch (Exception ex)
+            {
+                Logger.log.Warn($"Something went wrong getting the AssetBundle for '{fileName}'!");
+                Logger.log.Warn(ex);
+
+                MaterialDescriptor descriptor = new MaterialDescriptor()
+                {
+                    MaterialName = "Invalid Wall (Delete it!)",
+                    AuthorName = fileName,
+                    Icon = Utils.GetErrorIcon()
+                };
+
+                string errorMessage = $"File: '{fileName}'" +
+                                "\n\nThis file failed to load." +
+                                "\n\nThis may have been caused by having duplicated files," +
+                                " another wall with the same name already exists or that the custom wall is simply just broken." +
+                                "\n\nThe best thing is probably just to delete it!";
+
+                fileName = "DefaultMaterials";
+
+                return new CustomMaterial(fileName, null, descriptor, null, null, null, errorMessage);
             }
         }
 
-        public CustomMaterial(byte[] materialObject, string name)
+        public static async Task<CustomMaterial> CreateFromDataAsync(byte[] materialObject, string name)
         {
-            if (materialObject != null)
-            {
-                try
-                {
-                    AssetBundle = AssetBundle.LoadFromMemory(materialObject);
-                    GameObject = AssetBundle.LoadAsset<GameObject>("Assets/_CustomMaterial.prefab");
-
-                    FileName = $@"internalResource\{name}";
-                    Descriptor = GameObject.GetComponent<MaterialDescriptor>();
-                    MaterialRenderer = MaterialUtils.GetGameObjectRenderer(GameObject, "pixie");
-                    MaterialMeshFilter = MeshUtils.GetGameObjectMeshFilter(GameObject, "pixie");
-                }
-                catch (Exception ex)
-                {
-                    Logger.log.Warn($"Something went wrong getting the AssetBundle from resource!");
-                    Logger.log.Warn(ex);
-
-                    Descriptor = new MaterialDescriptor
-                    {
-                        MaterialName = "Internal Error (Report it!)",
-                        AuthorName = $@"internalResource\{name}",
-                        Icon = Utils.GetErrorIcon()
-                    };
-
-                    ErrorMessage = $@"File: 'internalResource\\{name}'" +
-                                    "\n\nAn internal asset has failed to load." +
-                                    "\n\nThis shouldn't have happened and should be reported!" +
-                                    " Remember to include the log related to this incident." +
-                                    "\n\nDiscord: Pespiri#5919";
-
-                    FileName = "DefaultMaterials";
-                }
-            }
-            else
+            if (materialObject == null)
             {
                 throw new ArgumentNullException("materialObject cannot be null for the constructor!");
+            }
+
+            try
+            {
+                AssetBundle assetBundle = await AssetBundleExtensions.LoadFromMemoryAsync(materialObject);
+                GameObject gameObject = await AssetBundleExtensions.LoadAssetAsync<GameObject>(assetBundle, "Assets/_CustomMaterial.prefab");
+                ShaderReplacementInfo shaderReplacementInfo = await ShaderRepair.FixShadersOnGameObjectAsync(gameObject);
+                if (!shaderReplacementInfo.AllShadersReplaced)
+                {
+                    foreach (string shaderName in shaderReplacementInfo.MissingShaderNames)
+                    {
+                        Logger.log.Debug($"Failed to replace shader '{shaderName}' on {gameObject.name}");
+                    }
+                }
+
+                string fileName = $@"internalResource\{name}";
+                MaterialDescriptor descriptor = gameObject.GetComponent<MaterialDescriptor>();
+                Renderer materialRenderer = MaterialUtils.GetGameObjectRenderer(gameObject, "pixie");
+                MeshFilter materialMeshFilter = MeshUtils.GetGameObjectMeshFilter(gameObject, "pixie");
+
+                return new CustomMaterial(fileName, assetBundle, descriptor, gameObject, materialRenderer, materialMeshFilter, null);
+            }
+            catch (Exception ex)
+            {
+                Logger.log.Warn($"Something went wrong getting the AssetBundle from resource!");
+                Logger.log.Warn(ex);
+
+                MaterialDescriptor descriptor = new MaterialDescriptor
+                {
+                    MaterialName = "Internal Error (Report it!)",
+                    AuthorName = $@"internalResource\{name}",
+                    Icon = Utils.GetErrorIcon()
+                };
+
+                string errorMessage = $@"File: 'internalResource\\{name}'" +
+                                "\n\nAn internal asset has failed to load." +
+                                "\n\nThis shouldn't have happened and should be reported!" +
+                                " Remember to include the log related to this incident." +
+                                "\n\nDiscord: Pespiri#5919";
+
+                string fileName = "DefaultMaterials";
+
+                return new CustomMaterial(fileName, null, descriptor, null, null, null, errorMessage);
             }
         }
 

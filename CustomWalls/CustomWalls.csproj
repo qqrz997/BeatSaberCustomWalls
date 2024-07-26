@@ -35,6 +35,11 @@
       <HintPath>$(BeatSaberDir)\Libs\0Harmony.dll</HintPath>
       <Private>False</Private>
     </Reference>
+    <Reference Include="AssetBundleLoadingTools, Version=1.1.5.0, Culture=neutral, processorArchitecture=MSIL">
+      <Private>False</Private>
+      <HintPath>$(BeatSaberDir)\Plugins\AssetBundleLoadingTools.dll</HintPath>
+      <SpecificVersion>False</SpecificVersion>
+    </Reference>
     <Reference Include="BSML">
       <HintPath>$(BeatSaberDir)\Plugins\BSML.dll</HintPath>
       <Private>False</Private>
@@ -46,6 +51,11 @@
     <Reference Include="Colors">
       <HintPath>$(BeatSaberDir)\Beat Saber_Data\Managed\Colors.dll</HintPath>
       <Private>False</Private>
+    </Reference>
+    <Reference Include="DataModels, Version=0.0.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <Private>False</Private>
+      <HintPath>$(BeatSaberDir)\Beat Saber_Data\Managed\DataModels.dll</HintPath>
+      <SpecificVersion>False</SpecificVersion>
     </Reference>
     <Reference Include="Hive.Versioning">
       <HintPath>$(BeatSaberDir)\Libs\Hive.Versioning.dll</HintPath>

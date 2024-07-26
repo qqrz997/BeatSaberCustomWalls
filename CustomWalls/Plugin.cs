@@ -8,7 +8,9 @@ using IPA;
 using IPA.Config;
 using IPA.Loader;
 using IPA.Utilities;
+using IPA.Utilities.Async;
 using System.IO;
+using System.Threading.Tasks;
 using IPALogger = IPA.Logging.Logger;
 
 namespace CustomWalls
@@ -33,7 +35,7 @@ namespace CustomWalls
         }
 
         [OnEnable]
-        public void OnEnable() => Load();
+        public void OnEnable() => UnityMainThreadTaskScheduler.Factory.StartNew(() => Load());
         [OnDisable]
         public void OnDisable() => Unload();
 
@@ -48,10 +50,10 @@ namespace CustomWalls
             }
         }
 
-        private void Load()
+        private async Task Load()
         {
             Configuration.Load();
-            MaterialAssetLoader.Load();
+            await MaterialAssetLoader.Load();
             CustomMaterialsPatches.ApplyHarmonyPatches();
             SettingsUI.CreateMenu();
             AddEvents();

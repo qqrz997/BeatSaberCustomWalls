@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 
 namespace CustomWalls.Utilities
 {
@@ -17,7 +18,7 @@ namespace CustomWalls.Utilities
         /// <summary>
         /// Load all CustomMaterials
         /// </summary>
-        internal static void Load()
+        internal static async Task Load()
         {
             if (!IsLoaded)
             {
@@ -27,7 +28,7 @@ namespace CustomWalls.Utilities
                 CustomMaterialFiles = Utils.GetFileNames(Plugin.PluginAssetPath, materialFilter, SearchOption.AllDirectories, true);
                 Logger.log.Debug($"{CustomMaterialFiles.Count()} external wall(s) found.");
 
-                CustomMaterialObjects = LoadCustomMaterials(CustomMaterialFiles);
+                CustomMaterialObjects = await LoadCustomMaterials(CustomMaterialFiles);
                 Logger.log.Debug($"{CustomMaterialObjects.Count} total wall(s) loaded.");
 
                 if (Configuration.CurrentlySelectedMaterial != null)
@@ -50,11 +51,11 @@ namespace CustomWalls.Utilities
         /// <summary>
         /// Reload all CustomMaterials
         /// </summary>
-        internal static void Reload()
+        internal static async Task Reload()
         {
             Logger.log.Debug("Reloading the MaterialAssetLoader");
             Clear();
-            Load();
+            await Load();
         }
 
         /// <summary>
@@ -75,11 +76,11 @@ namespace CustomWalls.Utilities
             CustomMaterialFiles = Enumerable.Empty<string>();
         }
 
-        private static IList<CustomMaterial> LoadCustomMaterials(IEnumerable<string> customMaterialFiles)
+        private async static Task<IList<CustomMaterial>> LoadCustomMaterials(IEnumerable<string> customMaterialFiles)
         {
             IList<CustomMaterial> customMaterials = new List<CustomMaterial>
             {
-                new CustomMaterial("DefaultMaterials"),
+                CustomMaterial.DefaultMaterial
             };
 
             IEnumerable<string> embeddedFiles = new List<string>
@@ -92,7 +93,7 @@ namespace CustomWalls.Utilities
 
             foreach (string embeddedFile in embeddedFiles)
             {
-                CustomMaterial customMaterial = LoadEmbeddedMaterial(embeddedFile);
+                CustomMaterial customMaterial = await LoadEmbeddedMaterial(embeddedFile);
                 if (customMaterial != null)
                 {
                     customMaterials.Add(customMaterial);
@@ -103,7 +104,7 @@ namespace CustomWalls.Utilities
             {
                 try
                 {
-                    CustomMaterial newMaterial = new CustomMaterial(customMaterialFile);
+                    CustomMaterial newMaterial = await CustomMaterial.CreateAsync(customMaterialFile);
                     if (newMaterial != null)
                     {
                         customMaterials.Add(newMaterial);
@@ -119,14 +120,14 @@ namespace CustomWalls.Utilities
             return customMaterials;
         }
 
-        private static CustomMaterial LoadEmbeddedMaterial(string fileName)
+        private static async Task<CustomMaterial> LoadEmbeddedMaterial(string fileName)
         {
             CustomMaterial customMaterial = null;
 
             try
             {
                 byte[] resource = Utils.LoadFromResource($"CustomWalls.Resources.Materials.{fileName}");
-                customMaterial = new CustomMaterial(resource, fileName);
+                customMaterial = await CustomMaterial.CreateFromDataAsync(resource, fileName);
             }
             catch (Exception ex)
             {
