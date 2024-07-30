@@ -43,28 +43,15 @@ namespace CustomWalls.Data
         {
             if (fileName == "DefaultMaterials")
             {
-                MaterialDescriptor descriptor = new MaterialDescriptor
-                {
-                    MaterialName = "Default",
-                    AuthorName = "Beat Saber",
-                    Description = "This is the default walls. (No preview available)",
-                    Icon = Utils.GetDefaultIcon()
-                };
-                return new CustomMaterial(fileName, null, descriptor, null, null, null, null);
+                return DefaultMaterial;
             }
 
             try
             {
                 AssetBundle assetBundle = await AssetBundleExtensions.LoadFromFileAsync(Path.Combine(Plugin.PluginAssetPath, fileName));
                 GameObject gameObject = await AssetBundleExtensions.LoadAssetAsync<GameObject>(assetBundle, "Assets/_CustomMaterial.prefab");
-                ShaderReplacementInfo shaderReplacementInfo = await ShaderRepair.FixShadersOnGameObjectAsync(gameObject);
-                if (!shaderReplacementInfo.AllShadersReplaced)
-                {
-                    foreach (string shaderName in shaderReplacementInfo.MissingShaderNames)
-                    {
-                        Logger.log.Debug($"Failed to replace shader '{shaderName}' on {gameObject.name}");
-                    }
-                }
+                gameObject.hideFlags |= HideFlags.DontUnloadUnusedAsset;
+                await RepairObjectShaders(gameObject);
 
                 MaterialDescriptor descriptor = gameObject.GetComponent<MaterialDescriptor>();
                 Renderer materialRenderer = MaterialUtils.GetGameObjectRenderer(gameObject, "pixie");
@@ -106,14 +93,8 @@ namespace CustomWalls.Data
             {
                 AssetBundle assetBundle = await AssetBundleExtensions.LoadFromMemoryAsync(materialObject);
                 GameObject gameObject = await AssetBundleExtensions.LoadAssetAsync<GameObject>(assetBundle, "Assets/_CustomMaterial.prefab");
-                ShaderReplacementInfo shaderReplacementInfo = await ShaderRepair.FixShadersOnGameObjectAsync(gameObject);
-                if (!shaderReplacementInfo.AllShadersReplaced)
-                {
-                    foreach (string shaderName in shaderReplacementInfo.MissingShaderNames)
-                    {
-                        Logger.log.Debug($"Failed to replace shader '{shaderName}' on {gameObject.name}");
-                    }
-                }
+                gameObject.hideFlags |= HideFlags.DontUnloadUnusedAsset;
+                await RepairObjectShaders(gameObject);
 
                 string fileName = $@"internalResource\{name}";
                 MaterialDescriptor descriptor = gameObject.GetComponent<MaterialDescriptor>();
@@ -143,6 +124,18 @@ namespace CustomWalls.Data
                 string fileName = "DefaultMaterials";
 
                 return new CustomMaterial(fileName, null, descriptor, null, null, null, errorMessage);
+            }
+        }
+
+        private static async Task RepairObjectShaders(GameObject gameObject)
+        {
+            ShaderReplacementInfo shaderReplacementInfo = await ShaderRepair.FixShadersOnGameObjectAsync(gameObject);
+            if (!shaderReplacementInfo.AllShadersReplaced)
+            {
+                foreach (string shaderName in shaderReplacementInfo.MissingShaderNames)
+                {
+                    Logger.log.Debug($"Failed to replace shader '{shaderName}' on {gameObject.name}");
+                }
             }
         }
 
