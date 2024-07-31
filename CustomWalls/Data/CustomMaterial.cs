@@ -119,7 +119,7 @@ namespace CustomWalls.Data
                                 "\n\nAn internal asset has failed to load." +
                                 "\n\nThis shouldn't have happened and should be reported!" +
                                 " Remember to include the log related to this incident." +
-                                "\n\nDiscord: Pespiri#5919";
+                                "\n\nDiscord: qqrz";
 
                 string fileName = "DefaultMaterials";
 
