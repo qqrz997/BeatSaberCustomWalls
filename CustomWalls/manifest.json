@@ -5,15 +5,15 @@
     "#![CustomWalls.Resources.description.md]",
     "Change all the walls!"
   ],
-  "gameVersion": "1.37.0",
+  "gameVersion": "1.37.4",
   "id": "CustomWalls",
   "name": "CustomWalls",
-  "version": "1.6.1",
+  "version": "1.6.2",
   "dependsOn": {
-    "BSIPA":  "^4.3.4",
-    "BeatSaberMarkupLanguage": "^1.11.2",
+    "BSIPA":  "^4.3.5",
+    "BeatSaberMarkupLanguage": "^1.11.4",
     "BS Utils": "^1.14.0",
-    "AssetBundleLoadingTools": "^1.1.4"
+    "AssetBundleLoadingTools": "^1.1.7"
   },
   "links": {
     "project-source": "https://github.com/qqrz997/BeatSaberCustomWalls"
