@@ -41,27 +41,27 @@ namespace CustomWalls.Settings.UI
         {
             await MaterialAssetLoader.Reload();
             SetupList();
-            Select(customListTableData.tableView, MaterialAssetLoader.SelectedMaterial);
+            Select(customListTableData.TableView, MaterialAssetLoader.SelectedMaterial);
         }
 
         [UIAction("#post-parse")]
         public void SetupList()
         {
-            customListTableData.data.Clear();
+            customListTableData.Data.Clear();
             foreach (CustomMaterial material in MaterialAssetLoader.CustomMaterialObjects)
             {
                 Sprite sprite = material?.Descriptor?.Icon
                     ? Sprite.Create(material.Descriptor.Icon, new Rect(Vector2.zero, new Vector2(material.Descriptor.Icon.width, material.Descriptor.Icon.height)), new Vector2(0.5f, 0.5f))
                     : null;
                 CustomListTableData.CustomCellInfo customCellInfo = new CustomListTableData.CustomCellInfo(material.Descriptor.MaterialName, material.Descriptor.AuthorName, sprite);
-                customListTableData.data.Add(customCellInfo);
+                customListTableData.Data.Add(customCellInfo);
             }
 
-            customListTableData.tableView.ReloadData();
+            customListTableData.TableView.ReloadData();
             int selectedMaterial = MaterialAssetLoader.SelectedMaterial;
 
-            customListTableData.tableView.ScrollToCellWithIdx(selectedMaterial, TableView.ScrollPositionType.Beginning, false);
-            customListTableData.tableView.SelectCellWithIdx(selectedMaterial);
+            customListTableData.TableView.ScrollToCellWithIdx(selectedMaterial, TableView.ScrollPositionType.Beginning, false);
+            customListTableData.TableView.SelectCellWithIdx(selectedMaterial);
         }
 
         protected override void DidActivate(bool firstActivation, bool addedToHierarchy, bool screenSystemEnabling)
@@ -76,7 +76,7 @@ namespace CustomWalls.Settings.UI
                 preview.transform.Rotate(0.0f, -22.5f, 0.0f);
             }
 
-            Select(customListTableData.tableView, MaterialAssetLoader.SelectedMaterial);
+            Select(customListTableData.TableView, MaterialAssetLoader.SelectedMaterial);
         }
 
         protected override void DidDeactivate(bool removedFromHierarchy, bool screenSystemDisabling)
