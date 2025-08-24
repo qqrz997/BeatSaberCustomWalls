@@ -11,28 +11,28 @@ using IPA.Utilities;
 using IPA.Utilities.Async;
 using System.IO;
 using System.Threading.Tasks;
+using SiraUtil.Zenject;
 using IPALogger = IPA.Logging.Logger;
 
 namespace CustomWalls
 {
     [Plugin(RuntimeOptions.DynamicInit)]
-    public class Plugin
+    internal class Plugin
     {
-        public static string PluginName => "CustomWalls";
-        public static Version PluginVersion { get; private set; } = new Version("0.0.0");
-        public static string PluginAssetPath => Path.Combine(UnityGame.InstallPath, "CustomWalls");
-
+        private readonly PluginMetadata metadata;
+        
         [Init]
-        public void Init(IPALogger logger, Config config, PluginMetadata metadata)
+        public Plugin(IPALogger logger, Config config, PluginMetadata metadata, Zenjector zenjector)
         {
+            this.metadata = metadata;
+            
             Logger.log = logger;
             Configuration.Init(config);
 
-            if (metadata?.HVersion != null)
-            {
-                PluginVersion = metadata.HVersion;
-            }
+            zenjector.Install<StandardGameplayInstaller>(container => { });
         }
+        
+        public static string PluginAssetPath => Path.Combine(UnityGame.InstallPath, "CustomWalls");
 
         [OnEnable]
         public void OnEnable() => UnityMainThreadTaskScheduler.Factory.StartNew(() => Load());
@@ -45,7 +45,7 @@ namespace CustomWalls
             if (customMaterial.Descriptor.DisablesScore
                 || Configuration.UserDisabledScores)
             {
-                BS_Utils.Gameplay.ScoreSubmission.DisableSubmission(PluginName);
+                BS_Utils.Gameplay.ScoreSubmission.DisableSubmission(metadata.Name);
                 Logger.log.Info("ScoreSubmission has been disabled.");
             }
         }
@@ -58,7 +58,7 @@ namespace CustomWalls
             SettingsUI.CreateMenu();
             AddEvents();
 
-            Logger.log.Info($"{PluginName} v.{PluginVersion} has started.");
+            Logger.log.Info($"{metadata.Name} v.{metadata.HVersion} has started.");
         }
 
         private void Unload()
