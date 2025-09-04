@@ -1,76 +1,61 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 using UnityEngine;
 
-namespace CustomWalls.Utilities
+namespace CustomWalls.Utilities;
+
+internal static class MaterialUtils
 {
-    internal class MaterialUtils
+    private static readonly System.Random mixStrength = new System.Random();
+    private static readonly int ColorId = Shader.PropertyToID("_Color");
+
+    public static Renderer MixRenderers(Renderer original, Renderer custom)
     {
-        private static readonly System.Random mixStrength = new System.Random();
+        return DateTime.Now.Month == 4 && DateTime.Now.Day == 1 ? mixStrength.Next(100) == 0 ? original : custom : custom;
+    }
 
-        public static Renderer MixRenderers(Renderer original, Renderer custom)
+    /// <summary>
+    /// Find a specific renderer within a GameObject
+    /// </summary>
+    /// <param name="gameObject">GameObject</param>
+    /// <param name="rendererName">Renderer name</param>
+    public static Renderer GetGameObjectRenderer(GameObject gameObject, string rendererName)
+    {
+        IEnumerable<Renderer> renderers = GetGameObjectRenderer(gameObject);
+        foreach (Renderer renderer in renderers)
         {
-            return DateTime.Now.Month == 4 && DateTime.Now.Day == 1 ? mixStrength.Next(100) == 0 ? original : custom : custom;
-        }
-
-        /// <summary>
-        /// Find a specific renderer within a GameObject
-        /// </summary>
-        /// <param name="gameObject">GameObject</param>
-        /// <param name="rendererName">Renderer name</param>
-        public static Renderer GetGameObjectRenderer(GameObject gameObject, string rendererName)
-        {
-            IEnumerable<Renderer> renderers = GetGameObjectRenderer(gameObject);
-            foreach (Renderer renderer in renderers)
+            if (string.Equals(renderer.name, rendererName, StringComparison.InvariantCultureIgnoreCase))
             {
-                if (string.Equals(renderer.name, rendererName, StringComparison.InvariantCultureIgnoreCase))
-                {
-                    return renderer;
-                }
+                return renderer;
             }
-
-            return null;
         }
 
-        /// <summary>
-        /// Find all renderers within a GameObject
-        /// </summary>
-        /// <param name="gameObject">GameObject</param>
-        /// <param name="includeInactive">Include inactive renderers</param>
-        public static IEnumerable<Renderer> GetGameObjectRenderer(GameObject gameObject, bool includeInactive = false)
-        {
-            IEnumerable<Renderer> renderers = gameObject?.GetComponentsInChildren<Renderer>(includeInactive);
-            return renderers ?? Enumerable.Empty<Renderer>();
-        }
+        return null;
+    }
 
-        /// <summary>
-        /// Copy over the essential parts of the donor over to the target renderer
-        /// </summary>
-        /// <param name="target"></param>
-        /// <param name="donor"></param>
-        public static void ReplaceRenderer(Renderer target, Renderer donor)
-        {
-            target.material = donor.material;
-        }
+    /// <summary>
+    /// Find all renderers within a GameObject
+    /// </summary>
+    /// <param name="gameObject">GameObject</param>
+    /// <param name="includeInactive">Include inactive renderers</param>
+    public static IEnumerable<Renderer> GetGameObjectRenderer(GameObject gameObject, bool includeInactive = false)
+    {
+        IEnumerable<Renderer> renderers = gameObject?.GetComponentsInChildren<Renderer>(includeInactive);
+        return renderers ?? [];
+    }
 
-        /// <summary>
-        /// Set the _Color field in every material if it has it
-        /// </summary>
-        /// <param name="materials">Materials</param>
-        /// <param name="color">Color</param>
-        public static void SetMaterialsColor(IEnumerable<Material> materials, Color color)
+    /// <summary>
+    /// Set the _Color field in every material if it has it
+    /// </summary>
+    /// <param name="materials">Materials</param>
+    /// <param name="color">Color</param>
+    public static void SetColors(this IEnumerable<Material> materials, Color color)
+    {
+        foreach (var material in materials)
         {
-            if (materials != null)
+            if (material != null && material.HasProperty(ColorId))
             {
-                foreach (Material material in materials)
-                {
-                    if (material != null
-                        && material.HasProperty("_Color"))
-                    {
-                        material.SetColor("_Color", color);
-                    }
-                }
+                material.SetColor(ColorId, color);
             }
         }
     }

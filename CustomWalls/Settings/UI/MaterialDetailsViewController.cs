@@ -4,62 +4,50 @@ using CustomWalls.Data;
 using CustomWalls.Utilities;
 using HMUI;
 using TMPro;
+using Zenject;
 
-namespace CustomWalls.Settings.UI
+namespace CustomWalls.Settings.UI;
+
+internal class MaterialDetailsViewController : BSMLResourceViewController
 {
-    internal class MaterialDetailsViewController : BSMLResourceViewController
+    [Inject] private readonly PluginConfig config = null!; 
+    [Inject] private readonly MaterialAssetLoader materialAssetLoader = null!;    
+    
+    public override string ResourceName => "CustomWalls.Settings.UI.Views.materialDetails.bsml";
+
+    private readonly string scoreDisabledByMaterial = "This CustomWall disables Score Submission";
+    private readonly string scoreDisabledByUser = "Score Submission has been manually disabled";
+
+    [UIComponent("material-description")]
+    public TextPageScrollView materialDescription = null;
+
+    [UIValue("enable-obstacle-frame")]
+    public bool EnableObstacleFrame
     {
-        public override string ResourceName => "CustomWalls.Settings.UI.Views.materialDetails.bsml";
+        get => config.EnableObstacleFrame;
+        set => config.EnableObstacleFrame = value;
+    }
 
-        private readonly string scoreDisabledByMaterial = "This CustomWall disables Score Submission";
-        private readonly string scoreDisabledByUser = "Score Submission has been manually disabled";
+    [UIComponent("score-submission-info")]
+    public TextMeshProUGUI scoreSubmissionInfo = null;
 
-        [UIComponent("material-description")]
-        public TextPageScrollView materialDescription = null;
+    public void OnMaterialWasChanged(CustomMaterial customMaterial)
+    {
+        materialDescription.SetText($"{customMaterial.Descriptor.MaterialName}:\n\n{Utils.SafeUnescape(customMaterial.Descriptor.Description)}");
+    }
 
-        [UIValue("enable-obstacle-frame")]
-        public bool EnableObstacleFrame
+    [UIAction("score-submission-manual-change")]
+    public void OnManualScoreSubmissionChange(bool state)
+    {
+        if (state)
         {
-            get => Configuration.EnableObstacleFrame;
-            set => Configuration.EnableObstacleFrame = value;
+            scoreSubmissionInfo.text = scoreDisabledByUser;
         }
-
-        [UIValue("disable-score-submission")]
-        public bool ManuallyDisableScoreSubmission
+        else
         {
-            get => Configuration.UserDisabledScores;
-            set => Configuration.UserDisabledScores = value;
-        }
-
-        [UIComponent("score-submission-info")]
-        public TextMeshProUGUI scoreSubmissionInfo = null;
-
-        public void OnMaterialWasChanged(CustomMaterial customMaterial)
-        {
-            materialDescription.SetText($"{customMaterial.Descriptor.MaterialName}:\n\n{Utils.SafeUnescape(customMaterial.Descriptor.Description)}");
-
-            if (!Configuration.UserDisabledScores)
-            {
-                scoreSubmissionInfo.text = customMaterial.Descriptor.DisablesScore
-                    ? scoreDisabledByMaterial
-                    : string.Empty;
-            }
-        }
-
-        [UIAction("score-submission-manual-change")]
-        public void OnManualScoreSubmissionChange(bool state)
-        {
-            if (state)
-            {
-                scoreSubmissionInfo.text = scoreDisabledByUser;
-            }
-            else
-            {
-                CustomMaterial customMaterial = MaterialAssetLoader.CustomMaterialObjects[MaterialAssetLoader.SelectedMaterial];
-                scoreSubmissionInfo.text = customMaterial.Descriptor.DisablesScore
-                    ? scoreDisabledByMaterial
-                    : string.Empty;
-            }
+            scoreSubmissionInfo.text = materialAssetLoader.GetSelectedMaterial().Descriptor.DisablesScore
+                ? scoreDisabledByMaterial
+                : string.Empty;
         }
     }
 }

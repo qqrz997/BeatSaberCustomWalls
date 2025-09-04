@@ -1,141 +1,152 @@
 ﻿using CustomWalls.Data;
-using CustomWalls.Settings;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
+using SiraUtil.Zenject;
 
-namespace CustomWalls.Utilities
+namespace CustomWalls.Utilities;
+
+internal class MaterialAssetLoader : IAsyncInitializable
 {
-    public class MaterialAssetLoader
+    private readonly PluginConfig config;
+
+    public MaterialAssetLoader(PluginConfig config)
     {
-        public static bool IsLoaded { get; private set; }
-        public static int SelectedMaterial { get; internal set; } = 0;
-        public static IList<CustomMaterial> CustomMaterialObjects { get; private set; }
-        public static IEnumerable<string> CustomMaterialFiles { get; private set; } = Enumerable.Empty<string>();
+        this.config = config;
+    }
+    
+    public int SelectedMaterialIdx { get; internal set; } = 0;
+    public IList<CustomMaterial> CustomMaterialObjects { get; private set; }
+    public CustomMaterial GetSelectedMaterial() => CustomMaterialObjects[SelectedMaterialIdx];
+    
+    private bool isLoaded;
+    private IEnumerable<string> customMaterialFiles = [];
 
-        /// <summary>
-        /// Load all CustomMaterials
-        /// </summary>
-        internal static async Task Load()
+    public async Task InitializeAsync(CancellationToken token)
+    {
+        await LoadAllCustomMaterials();
+    }
+    
+    private async Task LoadAllCustomMaterials()
+    {
+        if (!isLoaded)
         {
-            if (!IsLoaded)
+            Directory.CreateDirectory(Plugin.AssetPath);
+
+            IEnumerable<string> materialFilter = new List<string> { "*.pixie", "*.wall", };
+            customMaterialFiles = Utils.GetFileNames(Plugin.AssetPath, materialFilter, SearchOption.AllDirectories, true);
+            Plugin.Log.Debug($"{customMaterialFiles.Count()} external wall(s) found.");
+
+            CustomMaterialObjects = await LoadCustomMaterials(customMaterialFiles);
+            Plugin.Log.Debug($"{CustomMaterialObjects.Count} total wall(s) loaded.");
+
+            if (config.SelectedWallMaterial != null)
             {
-                Directory.CreateDirectory(Plugin.PluginAssetPath);
-
-                IEnumerable<string> materialFilter = new List<string> { "*.pixie", "*.wall", };
-                CustomMaterialFiles = Utils.GetFileNames(Plugin.PluginAssetPath, materialFilter, SearchOption.AllDirectories, true);
-                Logger.log.Debug($"{CustomMaterialFiles.Count()} external wall(s) found.");
-
-                CustomMaterialObjects = await LoadCustomMaterials(CustomMaterialFiles);
-                Logger.log.Debug($"{CustomMaterialObjects.Count} total wall(s) loaded.");
-
-                if (Configuration.CurrentlySelectedMaterial != null)
+                int numberOfMaterials = CustomMaterialObjects.Count;
+                for (int i = 0; i < numberOfMaterials; i++)
                 {
-                    int numberOfMaterials = CustomMaterialObjects.Count;
-                    for (int i = 0; i < numberOfMaterials; i++)
+                    if (CustomMaterialObjects[i].FileName == config.SelectedWallMaterial)
                     {
-                        if (CustomMaterialObjects[i].FileName == Configuration.CurrentlySelectedMaterial)
-                        {
-                            SelectedMaterial = i;
-                            break;
-                        }
+                        SelectedMaterialIdx = i;
+                        break;
                     }
                 }
+            }
 
-                IsLoaded = true;
+            isLoaded = true;
+        }
+    }
+
+    /// <summary>
+    /// Reload all CustomMaterials
+    /// </summary>
+    public async Task Reload()
+    {
+        Plugin.Log.Debug("Reloading the MaterialAssetLoader");
+        Clear();
+        await LoadAllCustomMaterials();
+    }
+
+    /// <summary>
+    /// Clear all loaded CustomMaterials
+    /// </summary>
+    public void Clear()
+    {
+        int numberOfObjects = CustomMaterialObjects.Count;
+        for (int i = 0; i < numberOfObjects; i++)
+        {
+            CustomMaterialObjects[i].Destroy();
+            CustomMaterialObjects[i] = null;
+        }
+
+        isLoaded = false;
+        SelectedMaterialIdx = 0;
+        CustomMaterialObjects = new List<CustomMaterial>();
+        customMaterialFiles = [];
+    }
+
+    private static async Task<IList<CustomMaterial>> LoadCustomMaterials(IEnumerable<string> customMaterialFiles)
+    {
+        IList<CustomMaterial> customMaterials = new List<CustomMaterial>
+        {
+            CustomMaterial.DefaultMaterial
+        };
+
+        IEnumerable<string> embeddedFiles = new List<string>
+        {
+            "MysticalSnowWalls.pixie",
+            "PixelWalls.pixie",
+            "PlainWalls.pixie",
+            "TransparentWalls.pixie"
+        };
+
+        foreach (string embeddedFile in embeddedFiles)
+        {
+            CustomMaterial customMaterial = await LoadEmbeddedMaterial(embeddedFile);
+            if (customMaterial != null)
+            {
+                customMaterials.Add(customMaterial);
             }
         }
 
-        /// <summary>
-        /// Reload all CustomMaterials
-        /// </summary>
-        internal static async Task Reload()
+        foreach (string customMaterialFile in customMaterialFiles)
         {
-            Logger.log.Debug("Reloading the MaterialAssetLoader");
-            Clear();
-            await Load();
-        }
-
-        /// <summary>
-        /// Clear all loaded CustomMaterials
-        /// </summary>
-        internal static void Clear()
-        {
-            int numberOfObjects = CustomMaterialObjects.Count;
-            for (int i = 0; i < numberOfObjects; i++)
-            {
-                CustomMaterialObjects[i].Destroy();
-                CustomMaterialObjects[i] = null;
-            }
-
-            IsLoaded = false;
-            SelectedMaterial = 0;
-            CustomMaterialObjects = new List<CustomMaterial>();
-            CustomMaterialFiles = Enumerable.Empty<string>();
-        }
-
-        private async static Task<IList<CustomMaterial>> LoadCustomMaterials(IEnumerable<string> customMaterialFiles)
-        {
-            IList<CustomMaterial> customMaterials = new List<CustomMaterial>
-            {
-                CustomMaterial.DefaultMaterial
-            };
-
-            IEnumerable<string> embeddedFiles = new List<string>
-            {
-                "MysticalSnowWalls.pixie",
-                "PixelWalls.pixie",
-                "PlainWalls.pixie",
-                "TransparentWalls.pixie"
-            };
-
-            foreach (string embeddedFile in embeddedFiles)
-            {
-                CustomMaterial customMaterial = await LoadEmbeddedMaterial(embeddedFile);
-                if (customMaterial != null)
-                {
-                    customMaterials.Add(customMaterial);
-                }
-            }
-
-            foreach (string customMaterialFile in customMaterialFiles)
-            {
-                try
-                {
-                    CustomMaterial newMaterial = await CustomMaterial.CreateAsync(customMaterialFile);
-                    if (newMaterial != null)
-                    {
-                        customMaterials.Add(newMaterial);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Logger.log.Warn($"Failed to load Custom Wall with name '{customMaterialFile}'.");
-                    Logger.log.Warn(ex);
-                }
-            }
-
-            return customMaterials;
-        }
-
-        private static async Task<CustomMaterial> LoadEmbeddedMaterial(string fileName)
-        {
-            CustomMaterial customMaterial = null;
-
             try
             {
-                byte[] resource = Utils.LoadFromResource($"CustomWalls.Resources.Materials.{fileName}");
-                customMaterial = await CustomMaterial.CreateFromDataAsync(resource, fileName);
+                CustomMaterial newMaterial = await CustomMaterial.CreateAsync(customMaterialFile);
+                if (newMaterial != null)
+                {
+                    customMaterials.Add(newMaterial);
+                }
             }
             catch (Exception ex)
             {
-                Logger.log.Warn($"Failed to load an internal file: '{fileName}'");
-                Logger.log.Warn(ex);
+                Plugin.Log.Warn($"Failed to load Custom Wall with name '{customMaterialFile}'.");
+                Plugin.Log.Warn(ex);
             }
-
-            return customMaterial;
         }
+
+        return customMaterials;
+    }
+
+    private static async Task<CustomMaterial> LoadEmbeddedMaterial(string fileName)
+    {
+        CustomMaterial customMaterial = null;
+
+        try
+        {
+            byte[] resource = Utils.LoadFromResource($"CustomWalls.Resources.Materials.{fileName}");
+            customMaterial = await CustomMaterial.CreateFromDataAsync(resource, fileName);
+        }
+        catch (Exception ex)
+        {
+            Plugin.Log.Warn($"Failed to load an internal file: '{fileName}'");
+            Plugin.Log.Warn(ex);
+        }
+
+        return customMaterial;
     }
 }
